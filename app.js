@@ -1,4 +1,3 @@
-// Estado inicial
 let state = {
     profile: JSON.parse(localStorage.getItem('fitTrack_profile')) || { age: '', gender: 'M', height: 175 },
     metrics: JSON.parse(localStorage.getItem('fitTrack_metrics')) || [],
@@ -7,28 +6,31 @@ let state = {
 
 let weightChartInstance = null;
 
-// Inicialización
 document.addEventListener('DOMContentLoaded', () => {
     loadProfileData();
     updateDashboard();
     initChart();
 });
 
-// Navegación
+// Navegación con efectos visuales
 function switchTab(tabId) {
+    // Esconder todas las pestañas
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    // Mostrar la seleccionada
     document.getElementById(`tab-${tabId}`).classList.add('active');
     
+    // Actualizar botones del menú inferior
     document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('text-blue-600');
+        btn.classList.remove('text-emerald-400', 'bg-slate-800/50');
         btn.classList.add('text-slate-400');
         if(btn.dataset.target === tabId) {
             btn.classList.remove('text-slate-400');
-            btn.classList.add('text-blue-600');
+            btn.classList.add('text-emerald-400', 'bg-slate-800/50');
         }
     });
 
     if (tabId === 'dashboard') updateDashboard();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // Formularios
@@ -40,7 +42,7 @@ document.getElementById('profile-form').addEventListener('submit', (e) => {
         height: document.getElementById('profile-height').value
     };
     saveData();
-    alert('Perfil actualizado');
+    showToast('Perfil actualizado correctamente');
 });
 
 document.getElementById('metrics-form').addEventListener('submit', (e) => {
@@ -48,7 +50,6 @@ document.getElementById('metrics-form').addEventListener('submit', (e) => {
     const weight = parseFloat(document.getElementById('metric-weight').value);
     const date = new Date().toISOString().split('T')[0];
     
-    // Evitar duplicados el mismo día
     const existingIndex = state.metrics.findIndex(m => m.date === date);
     if(existingIndex >= 0) {
         state.metrics[existingIndex].weight = weight;
@@ -57,9 +58,9 @@ document.getElementById('metrics-form').addEventListener('submit', (e) => {
     }
     
     saveData();
-    alert('Medición registrada');
+    showToast('Peso registrado');
     updateDashboard();
-    switchTab('dashboard');
+    setTimeout(() => switchTab('dashboard'), 500);
 });
 
 document.getElementById('workout-form').addEventListener('submit', (e) => {
@@ -75,10 +76,11 @@ document.getElementById('workout-form').addEventListener('submit', (e) => {
     state.workouts.unshift(workout);
     saveData();
     e.target.reset();
-    alert('Serie guardada');
+    showToast('¡Serie guardada con éxito!');
+    updateDashboard();
 });
 
-// Funciones de utilidad y UI
+// Utilidades
 function saveData() {
     localStorage.setItem('fitTrack_profile', JSON.stringify(state.profile));
     localStorage.setItem('fitTrack_metrics', JSON.stringify(state.metrics));
@@ -101,65 +103,112 @@ function updateDashboard() {
     const imcLabel = document.getElementById('dashboard-imc-label');
 
     if (latestMetric) {
-        weightEl.textContent = `${latestMetric.weight} kg`;
+        weightEl.innerHTML = `${latestMetric.weight} <span class="text-lg text-slate-500 font-normal">kg</span>`;
         
         if (state.profile.height) {
             const heightM = state.profile.height / 100;
             const imc = (latestMetric.weight / (heightM * heightM)).toFixed(1);
             imcEl.textContent = imc;
             
-            let status = '';
-            if(imc < 18.5) { status = 'Bajo peso'; imcEl.className = 'text-2xl font-bold text-yellow-500'; }
-            else if(imc < 24.9) { status = 'Saludable'; imcEl.className = 'text-2xl font-bold text-green-500'; }
-            else if(imc < 29.9) { status = 'Sobrepeso'; imcEl.className = 'text-2xl font-bold text-orange-500'; }
-            else { status = 'Obesidad'; imcEl.className = 'text-2xl font-bold text-red-500'; }
-            
-            imcLabel.textContent = status;
+            // Colores comerciales para IMC
+            if(imc < 18.5) { imcEl.className = 'text-3xl font-bold text-cyan-400'; imcLabel.textContent = 'Bajo peso'; }
+            else if(imc < 24.9) { imcEl.className = 'text-3xl font-bold text-emerald-400'; imcLabel.textContent = 'Saludable'; }
+            else if(imc < 29.9) { imcEl.className = 'text-3xl font-bold text-amber-400'; imcLabel.textContent = 'Sobrepeso'; }
+            else { imcEl.className = 'text-3xl font-bold text-rose-500'; imcLabel.textContent = 'Obesidad'; }
         }
     }
 
-    // Actualizar historial
+    // Historial con diseño de tarjetas pequeñas
     const historyContainer = document.getElementById('workout-history');
     historyContainer.innerHTML = '';
     const recentWorkouts = state.workouts.slice(0, 5);
     
     if(recentWorkouts.length === 0) {
-        historyContainer.innerHTML = '<p class="text-slate-400">Aún no hay entrenamientos.</p>';
+        historyContainer.innerHTML = '<div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-center text-slate-500">Aún no hay entrenamientos registrados</div>';
     } else {
         recentWorkouts.forEach(w => {
             historyContainer.innerHTML += `
-                <div class="flex justify-between items-center border-b border-slate-100 pb-2">
-                    <div>
-                        <p class="font-semibold text-slate-700">${w.exercise}</p>
-                        <p class="text-xs text-slate-400">${w.date}</p>
+                <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex justify-between items-center hover:border-slate-700 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-slate-400">
+                            <i class="fa-solid fa-dumbbell text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-white text-sm">${w.exercise}</p>
+                            <p class="text-xs text-slate-500">${w.date}</p>
+                        </div>
                     </div>
                     <div class="text-right">
-                        <span class="bg-blue-100 text-blue-700 py-1 px-2 rounded font-bold">${w.weight} kg x ${w.reps}</span>
+                        <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 py-1 px-3 rounded-lg font-bold text-sm">
+                            ${w.weight}kg &times; ${w.reps}
+                        </span>
                     </div>
                 </div>
             `;
         });
     }
-
     updateChart();
 }
 
 function initChart() {
     const ctx = document.getElementById('weightChart').getContext('2d');
+    
+    // Crear gradiente para la gráfica
+    let gradient = ctx.createLinearGradient(0, 0, 0, 400);
+    gradient.addColorStop(0, 'rgba(16, 185, 129, 0.5)'); // Emerald 500 transparente
+    gradient.addColorStop(1, 'rgba(16, 185, 129, 0.0)');
+
     weightChartInstance = new Chart(ctx, {
         type: 'line',
-        data: { labels: [], datasets: [{ label: 'Peso (kg)', data: [], borderColor: '#3b82f6', tension: 0.3 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+        data: { 
+            labels: [], 
+            datasets: [{ 
+                label: 'Peso', 
+                data: [], 
+                borderColor: '#10b981', // Emerald 500
+                backgroundColor: gradient,
+                borderWidth: 3,
+                pointBackgroundColor: '#020617',
+                pointBorderColor: '#10b981',
+                pointBorderWidth: 2,
+                pointRadius: 4,
+                fill: true,
+                tension: 0.4 // Curvas suaves
+            }] 
+        },
+        options: { 
+            responsive: true, 
+            maintainAspectRatio: false, 
+            plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+            scales: {
+                x: { grid: { display: false }, border: { display: false }, ticks: { color: '#64748b' } },
+                y: { grid: { color: '#1e293b', borderDash: [5, 5] }, border: { display: false }, ticks: { color: '#64748b' } }
+            },
+            interaction: { mode: 'nearest', axis: 'x', intersect: false }
+        }
     });
     updateChart();
 }
 
 function updateChart() {
-    if(!weightChartInstance) return;
+    if(!weightChartInstance || state.metrics.length === 0) return;
     
-    // Tomar los últimos 6 meses/registros
-    const recentMetrics = state.metrics.slice(-6);
-    weightChartInstance.data.labels = recentMetrics.map(m => m.date.slice(5)); // Mostrar MM-DD
+    const recentMetrics = state.metrics.slice(-7);
+    weightChartInstance.data.labels = recentMetrics.map(m => m.date.slice(5));
     weightChartInstance.data.datasets[0].data = recentMetrics.map(m => m.weight);
     weightChartInstance.update();
+}
+
+// Pequeño sistema de notificaciones (Toast)
+function showToast(msg) {
+    const toast = document.createElement('div');
+    toast.className = 'fixed top-5 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-6 py-3 rounded-full shadow-2xl border border-slate-700 z-[100] text-sm font-medium transition-all duration-300 translate-y-[-20px] opacity-0';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => { toast.classList.remove('translate-y-[-20px]', 'opacity-0'); }, 10);
+    setTimeout(() => { 
+        toast.classList.add('translate-y-[-20px]', 'opacity-0'); 
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
 }
