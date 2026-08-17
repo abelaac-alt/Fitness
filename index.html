@@ -15,23 +15,19 @@
         .view-section { display: none; opacity: 0; transition: opacity 0.2s ease-in-out; }
         .view-section.active { display: block; opacity: 1; }
         
-        /* Ocultar flechas de inputs numéricos */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
         
-        /* Modal Animation */
         .modal-enter { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         .modal-exit { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
         @keyframes slideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
         
-        /* Custom Checkbox */
         .set-checkbox { appearance: none; width: 2rem; height: 2rem; border-radius: 0.5rem; border: 2px solid #334155; background: transparent; transition: all 0.2s; display: grid; place-items: center; }
         .set-checkbox::before { content: ""; width: 1rem; height: 1rem; background-color: transparent; transition: 0.2s transform ease-in-out; transform: scale(0); clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
         .set-checkbox:checked { background-color: #10b981; border-color: #10b981; }
         .set-checkbox:checked::before { transform: scale(1); background-color: white; }
         
-        /* Row highlight when done */
         .set-row.done { background-color: rgba(16, 185, 129, 0.05); }
         .set-row.done input { color: #10b981; }
     </style>
@@ -43,13 +39,13 @@
         <h1 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
             FitTrack
         </h1>
-        <button onclick="switchView('profile')" class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 text-slate-400 hover:text-emerald-400 transition">
-            <i class="fa-solid fa-user-gear text-sm"></i>
-        </button>
+        <div class="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20 text-emerald-400">
+            <i class="fa-solid fa-bolt text-sm"></i>
+        </div>
     </header>
 
     <!-- MAIN SCROLLABLE CONTENT -->
-    <main class="flex-1 overflow-y-auto pb-24 relative" id="main-container">
+    <main class="flex-1 overflow-y-auto pb-28 relative" id="main-container">
         
         <!-- DASHBOARD VIEW -->
         <section id="view-dashboard" class="view-section active p-5 max-w-2xl mx-auto space-y-6">
@@ -59,19 +55,33 @@
             </div>
             
             <div class="grid grid-cols-2 gap-4">
-                <div class="bg-slate-800/50 rounded-3xl p-5 border border-slate-700/50">
-                    <p class="text-sm text-slate-400 font-medium mb-1"><i class="fa-solid fa-fire text-orange-500 mr-2"></i>Entrenamientos</p>
+                <div class="bg-slate-800/50 rounded-3xl p-5 border border-slate-700/50 shadow-lg">
+                    <p class="text-sm text-slate-400 font-medium mb-1"><i class="fa-solid fa-fire text-orange-500 mr-2"></i>Sesiones</p>
                     <p id="stat-workouts" class="text-3xl font-bold text-white">0</p>
                 </div>
-                <div class="bg-slate-800/50 rounded-3xl p-5 border border-slate-700/50">
+                <div class="bg-slate-800/50 rounded-3xl p-5 border border-slate-700/50 shadow-lg">
                     <p class="text-sm text-slate-400 font-medium mb-1"><i class="fa-solid fa-dumbbell text-emerald-500 mr-2"></i>Volumen (kg)</p>
                     <p id="stat-volume" class="text-3xl font-bold text-white">0</p>
                 </div>
             </div>
 
-            <div class="bg-slate-800/50 rounded-3xl p-5 border border-slate-700/50">
+            <div class="bg-slate-800/50 rounded-3xl p-5 border border-slate-700/50 shadow-lg">
                 <h3 class="font-semibold text-white mb-4">Progresión de Volumen</h3>
                 <div class="h-48 w-full"><canvas id="mainChart"></canvas></div>
+            </div>
+        </section>
+
+        <!-- ROUTINES VIEW -->
+        <section id="view-routines" class="view-section p-5 max-w-2xl mx-auto space-y-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-bold text-white">Mis Rutinas</h2>
+                <button onclick="openRoutineEditor()" class="text-slate-950 font-bold text-sm bg-emerald-400 px-4 py-2 rounded-xl shadow-lg active:scale-95 transition">
+                    + Crear
+                </button>
+            </div>
+            
+            <div id="routines-list" class="space-y-4">
+                <!-- Inyectado por JS -->
             </div>
         </section>
 
@@ -87,7 +97,7 @@
         <section id="view-profile" class="view-section p-5 max-w-2xl mx-auto space-y-6">
             <h2 class="text-xl font-bold text-white mb-4">Ajustes y Perfil</h2>
             
-            <div class="bg-slate-800/50 rounded-3xl p-6 border border-slate-700/50">
+            <div class="bg-slate-800/50 rounded-3xl p-6 border border-slate-700/50 shadow-lg">
                 <form id="profile-form" class="space-y-4">
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -105,7 +115,7 @@
                 </form>
             </div>
             
-            <button onclick="factoryReset()" class="w-full py-4 text-rose-500 font-semibold bg-rose-500/10 rounded-xl border border-rose-500/20">
+            <button onclick="factoryReset()" class="w-full py-4 text-rose-500 font-semibold bg-rose-500/10 rounded-xl border border-rose-500/20 shadow-lg">
                 Borrar todos los datos
             </button>
         </section>
@@ -113,48 +123,84 @@
     </main>
 
     <!-- BOTTOM NAVIGATION -->
-    <nav id="bottom-nav" class="fixed bottom-0 w-full bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 pb-safe pt-2 px-6 flex justify-between items-center z-40 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-        <button onclick="switchView('history')" class="nav-btn w-16 h-14 flex flex-col items-center justify-center text-slate-500 hover:text-white transition" data-target="history">
-            <i class="fa-solid fa-clock-rotate-left text-xl mb-1"></i>
-            <span class="text-[10px] font-medium">Historial</span>
+    <nav id="bottom-nav" class="fixed bottom-0 w-full bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 pb-safe pt-2 px-4 flex justify-between items-center z-40 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        
+        <button onclick="switchView('dashboard')" class="nav-btn active flex-1 flex flex-col items-center justify-center h-14 text-emerald-400 transition" data-target="dashboard">
+            <i class="fa-solid fa-chart-pie text-lg mb-1"></i>
+            <span class="text-[10px] font-medium">Panel</span>
         </button>
         
-        <!-- FAB (Floating Action Button) for New Workout -->
-        <div class="relative -top-6">
-            <button onclick="startWorkout()" class="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-full flex items-center justify-center text-white text-2xl shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-105 transition transform active:scale-95">
-                <i class="fa-solid fa-plus"></i>
+        <button onclick="switchView('routines')" class="nav-btn flex-1 flex flex-col items-center justify-center h-14 text-slate-500 hover:text-white transition" data-target="routines">
+            <i class="fa-solid fa-clipboard-list text-lg mb-1"></i>
+            <span class="text-[10px] font-medium">Rutinas</span>
+        </button>
+        
+        <!-- FAB (Floating Action Button) -->
+        <div class="relative -top-5 flex-1 flex justify-center">
+            <button onclick="startWorkout()" class="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-full flex items-center justify-center text-white text-2xl shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-105 transition transform active:scale-95 border-4 border-slate-900">
+                <i class="fa-solid fa-play ml-1"></i>
             </button>
         </div>
 
-        <button onclick="switchView('dashboard')" class="nav-btn active w-16 h-14 flex flex-col items-center justify-center text-emerald-400 transition" data-target="dashboard">
-            <i class="fa-solid fa-chart-pie text-xl mb-1"></i>
-            <span class="text-[10px] font-medium">Panel</span>
+        <button onclick="switchView('history')" class="nav-btn flex-1 flex flex-col items-center justify-center h-14 text-slate-500 hover:text-white transition" data-target="history">
+            <i class="fa-solid fa-clock-rotate-left text-lg mb-1"></i>
+            <span class="text-[10px] font-medium">Historial</span>
+        </button>
+
+        <button onclick="switchView('profile')" class="nav-btn flex-1 flex flex-col items-center justify-center h-14 text-slate-500 hover:text-white transition" data-target="profile">
+            <i class="fa-solid fa-user-gear text-lg mb-1"></i>
+            <span class="text-[10px] font-medium">Perfil</span>
         </button>
     </nav>
 
     <!-- ========================================== -->
-    <!-- OVERLAYS & MODALS (HIDDEN BY DEFAULT)      -->
+    <!-- OVERLAYS & MODALS                          -->
     <!-- ========================================== -->
+
+    <!-- ROUTINE EDITOR OVERLAY -->
+    <div id="routine-editor-view" class="fixed inset-0 bg-slate-950 z-[50] hidden flex-col">
+        <div class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex justify-between items-center shrink-0 shadow-md">
+            <button onclick="closeRoutineEditor()" class="text-slate-400 hover:text-white transition p-2">
+                <i class="fa-solid fa-arrow-left text-lg"></i>
+            </button>
+            <h2 class="font-bold text-white text-lg">Editor de Rutina</h2>
+            <button onclick="saveRoutine()" class="text-emerald-400 font-bold p-2 active:scale-95 transition">
+                Guardar
+            </button>
+        </div>
+        
+        <div class="p-4 shrink-0">
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Nombre de la Rutina</label>
+            <input type="text" id="routine-name-input" placeholder="Ej: Empuje, Pecho y Tríceps..." class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white text-lg font-bold focus:border-emerald-500 outline-none">
+        </div>
+
+        <div id="routine-canvas" class="flex-1 overflow-y-auto p-4 space-y-3">
+            <!-- Ejercicios inyectados aquí -->
+        </div>
+
+        <div class="p-4 shrink-0 bg-slate-900 border-t border-slate-800">
+            <button onclick="openExerciseModal('routine')" class="w-full bg-slate-800 text-emerald-400 border border-slate-700 font-bold py-4 rounded-2xl shadow-lg active:bg-slate-700 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-plus"></i> Añadir Ejercicio
+            </button>
+        </div>
+    </div>
 
     <!-- ACTIVE WORKOUT FULLSCREEN OVERLAY -->
     <div id="workout-active-view" class="fixed inset-0 bg-slate-950 z-[60] hidden flex-col">
-        <!-- Workout Header -->
         <div class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex justify-between items-center shrink-0">
-            <div>
-                <input type="text" id="workout-name-input" value="Entrenamiento de hoy" class="bg-transparent text-white font-bold text-lg outline-none w-full">
+            <div class="flex-1">
+                <input type="text" id="workout-name-input" value="Entrenamiento Libre" class="bg-transparent text-white font-bold text-lg outline-none w-full">
                 <div class="flex items-center gap-2 mt-1">
                     <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
                     <span id="workout-timer-display" class="text-sm font-medium text-emerald-400">00:00</span>
                 </div>
             </div>
-            <button onclick="finishWorkout()" class="bg-emerald-500 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm active:scale-95 transition">
+            <button onclick="finishWorkout()" class="bg-emerald-500 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm active:scale-95 transition shadow-lg">
                 Finalizar
             </button>
         </div>
 
-        <!-- Workout Canvas (Exercises go here) -->
         <div id="workout-canvas" class="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
-            <!-- Ejercicios inyectados por JS -->
             <div id="empty-workout-msg" class="text-center text-slate-500 mt-10">
                 <i class="fa-solid fa-dumbbell text-4xl mb-3 opacity-20"></i>
                 <p>Tu entrenamiento está vacío.</p>
@@ -162,9 +208,8 @@
             </div>
         </div>
 
-        <!-- Add Exercise Button (Fixed Bottom inside workout) -->
         <div class="absolute bottom-6 w-full px-4 shrink-0">
-            <button onclick="openExerciseModal()" class="w-full bg-slate-800 text-emerald-400 border border-slate-700 font-bold py-4 rounded-2xl shadow-lg active:bg-slate-700 transition flex items-center justify-center gap-2">
+            <button onclick="openExerciseModal('workout')" class="w-full bg-slate-800 text-emerald-400 border border-slate-700 font-bold py-4 rounded-2xl shadow-lg active:bg-slate-700 transition flex items-center justify-center gap-2">
                 <i class="fa-solid fa-plus"></i> Añadir Ejercicio
             </button>
         </div>
@@ -180,15 +225,44 @@
                 </button>
             </div>
             
-            <div class="p-4 shrink-0">
+            <div class="p-4 shrink-0 space-y-3">
                 <div class="relative">
                     <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
                     <input type="text" id="exercise-search" placeholder="Buscar ejercicio..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-white focus:border-emerald-500 outline-none">
                 </div>
+                <!-- Custom Exercise Button -->
+                <button onclick="openCustomExModal()" class="w-full py-2 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-xl font-semibold text-sm hover:bg-emerald-500/20 transition flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square"></i> Crear Ejercicio Personalizado
+                </button>
             </div>
 
             <div id="exercise-list-container" class="flex-1 overflow-y-auto p-4 space-y-6">
                 <!-- Lista inyectada por JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- CREATE CUSTOM EXERCISE MODAL -->
+    <div id="custom-ex-modal" class="fixed inset-0 bg-slate-950/90 z-[80] hidden items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-slate-900 border border-slate-700 p-6 rounded-3xl w-full max-w-sm shadow-2xl">
+            <h3 class="text-lg font-bold text-white mb-4">Nuevo Ejercicio</h3>
+            
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Nombre</label>
+            <input type="text" id="custom-ex-name" placeholder="Ej. Peso Muerto Sumo" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white mb-4 outline-none focus:border-emerald-500 font-medium">
+            
+            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Categoría</label>
+            <select id="custom-ex-cat" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-4 text-white mb-6 outline-none focus:border-emerald-500 font-medium appearance-none">
+                <option value="Pecho">Pecho</option>
+                <option value="Espalda">Espalda</option>
+                <option value="Piernas">Piernas</option>
+                <option value="Hombros">Hombros</option>
+                <option value="Brazos">Brazos</option>
+                <option value="Core">Core</option>
+            </select>
+            
+            <div class="flex gap-3">
+                <button onclick="closeCustomExModal()" class="flex-1 bg-slate-800 text-slate-300 py-3 rounded-xl font-bold">Cancelar</button>
+                <button onclick="saveCustomExercise()" class="flex-1 bg-emerald-500 text-slate-950 py-3 rounded-xl font-bold">Guardar</button>
             </div>
         </div>
     </div>

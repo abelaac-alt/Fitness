@@ -1,5 +1,5 @@
 // --- DATABASE ---
-const db = {
+const defaultDB = {
     "Pecho": ["Press de Banca", "Press Inclinado", "Aperturas con Mancuernas", "Cruce de Poleas", "Flexiones", "Peck Deck"],
     "Espalda": ["Dominadas", "Remo con Barra", "Jalón al Pecho", "Remo en Punta", "Peso Muerto", "Pullover en Polea"],
     "Piernas": ["Sentadilla Libre", "Prensa", "Extensión de Cuádriceps", "Curl Femoral", "Peso Muerto Rumano", "Elevación de Gemelos", "Hip Thrust"],
@@ -11,37 +11,45 @@ const db = {
 // --- STATE ---
 let state = {
     profile: JSON.parse(localStorage.getItem('fitTrackPro_profile')) || { weight: 80, height: 175 },
-    workouts: JSON.parse(localStorage.getItem('fitTrackPro_workouts')) || []
+    workouts: JSON.parse(localStorage.getItem('fitTrackPro_workouts')) || [],
+    routines: JSON.parse(localStorage.getItem('fitTrackPro_routines')) || [],
+    customExercises: JSON.parse(localStorage.getItem('fitTrackPro_customEx')) || []
 };
 
-// Active Workout State
+// Merged Database
+function getFullDB() {
+    let db = JSON.parse(JSON.stringify(defaultDB));
+    state.customExercises.forEach(ex => {
+        if(!db[ex.category]) db[ex.category] = [];
+        if(!db[ex.category].includes(ex.name)) db[ex.category].push(ex.name);
+    });
+    return db;
+}
+
 let activeWorkout = null; 
-// Structure: { startTime, name, exercises: [ { name, category, sets: [ { kg, reps, done } ] } ] }
 let workoutTimerInterval = null;
 let workoutSeconds = 0;
 
-// Rest Timer State
+let editingRoutine = null;
+let exerciseModalTarget = 'workout'; // 'workout' or 'routine'
+
 let restTimerSeconds = 0;
 let restTimerInterval = null;
-const DEFAULT_REST = 90; // 90 seconds default
+const DEFAULT_REST = 90;
 
 let chartInstance = null;
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', () => {
-    initApp();
-});
-
-function initApp() {
     loadProfile();
     renderDashboard();
+    renderRoutines();
     initChart();
     
-    // Search listener for modal
     document.getElementById('exercise-search').addEventListener('input', (e) => {
         renderExerciseList(e.target.value);
     });
-}
+});
 
 // --- NAVIGATION ---
 function switchView(viewId) {
@@ -59,22 +67,140 @@ function switchView(viewId) {
 
     if (viewId === 'dashboard') renderDashboard();
     if (viewId === 'history') renderHistory();
+    if (viewId === 'routines') renderRoutines();
+}
+
+// --- ROUTINES SYSTEM ---
+function renderRoutines() {
+    const list = document.getElementById('routines-list');
+    list.innerHTML = '';
+    
+    if (state.routines.length === 0) {
+        list.innerHTML = '<div class="text-center p-10 text-slate-500 bg-slate-800/50 rounded-3xl border border-slate-700/50 shadow-inner">No tienes rutinas creadas.<br><span class="text-sm mt-2 block">Haz clic en + Crear para diseñar tu entrenamiento.</span></div>';
+        return;
+    }
+
+    state.routines.forEach((r, i) => {
+        const exSummary = r.exercises.map(ex => ex.name).join(', ').substring(0, 45) + '...';
+        list.innerHTML += `
+            <div class="bg-slate-800/80 rounded-2xl p-4 border border-slate-700 shadow-md flex justify-between items-center group">
+                <div class="flex-1 pr-4">
+                    <h4 class="font-bold text-white text-lg mb-1">${r.name}</h4>
+                    <p class="text-xs text-slate-400">${r.exercises.length} ejercicios &bull; ${exSummary}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="startWorkoutFromRoutine(${i})" class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center hover:bg-emerald-500 hover:text-slate-900 transition active:scale-95">
+                        <i class="fa-solid fa-play"></i>
+                    </button>
+                    <button onclick="deleteRoutine(${i})" class="w-12 h-12 bg-slate-800 text-slate-500 rounded-xl flex items-center justify-center hover:text-rose-400 transition active:scale-95">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function openRoutineEditor() {
+    editingRoutine = { name: '', exercises: [] };
+    document.getElementById('routine-name-input').value = '';
+    renderRoutineCanvas();
+    const ui = document.getElementById('routine-editor-view');
+    ui.classList.remove('hidden');
+    ui.classList.add('flex');
+}
+
+function closeRoutineEditor() {
+    editingRoutine = null;
+    const ui = document.getElementById('routine-editor-view');
+    ui.classList.add('hidden');
+    ui.classList.remove('flex');
+}
+
+function saveRoutine() {
+    const name = document.getElementById('routine-name-input').value.trim();
+    if (!name) return showToast("Por favor, ponle nombre a la rutina.");
+    if (editingRoutine.exercises.length === 0) return showToast("Añade al menos un ejercicio.");
+
+    editingRoutine.name = name;
+    state.routines.push(editingRoutine);
+    saveState();
+    closeRoutineEditor();
+    renderRoutines();
+    showToast("¡Rutina guardada exitosamente!");
+}
+
+function deleteRoutine(index) {
+    if(confirm("¿Eliminar esta rutina?")) {
+        state.routines.splice(index, 1);
+        saveState();
+        renderRoutines();
+    }
+}
+
+function renderRoutineCanvas() {
+    const canvas = document.getElementById('routine-canvas');
+    canvas.innerHTML = '';
+    
+    if (editingRoutine.exercises.length === 0) {
+        canvas.innerHTML = '<div class="text-center p-8 text-slate-500"><i class="fa-solid fa-clipboard-list text-3xl mb-2 opacity-30"></i><p>Rutina vacía.</p></div>';
+        return;
+    }
+
+    editingRoutine.exercises.forEach((ex, i) => {
+        canvas.innerHTML += `
+            <div class="bg-slate-800 p-4 rounded-xl flex justify-between items-center border border-slate-700 shadow-sm">
+                <div class="flex items-center gap-4">
+                    <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-500 font-bold text-xs">${i+1}</div>
+                    <div>
+                        <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest leading-none mb-1">${ex.category}</p>
+                        <p class="text-white font-bold">${ex.name}</p>
+                    </div>
+                </div>
+                <button onclick="removeExerciseFromRoutine(${i})" class="text-slate-500 hover:text-rose-400 p-2 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+        `;
+    });
+}
+
+function removeExerciseFromRoutine(index) {
+    editingRoutine.exercises.splice(index, 1);
+    renderRoutineCanvas();
 }
 
 // --- ACTIVE WORKOUT LOGIC ---
 
 function startWorkout() {
+    initWorkoutObj("Entrenamiento Libre");
+}
+
+function startWorkoutFromRoutine(index) {
+    const routine = state.routines[index];
+    initWorkoutObj(routine.name);
+    
+    // Copy exercises with empty sets
+    activeWorkout.exercises = routine.exercises.map(ex => ({
+        name: ex.name,
+        category: ex.category,
+        sets: [ { kg: '', reps: '', done: false } ]
+    }));
+    
+    renderWorkoutCanvas();
+}
+
+function initWorkoutObj(name) {
     activeWorkout = {
         id: Date.now(),
         startTime: Date.now(),
-        name: "Entrenamiento de hoy",
+        name: name,
         exercises: []
     };
     workoutSeconds = 0;
     document.getElementById('workout-name-input').value = activeWorkout.name;
     document.getElementById('workout-timer-display').innerText = "00:00";
     
-    // Start global timer
     clearInterval(workoutTimerInterval);
     workoutTimerInterval = setInterval(() => {
         workoutSeconds++;
@@ -84,8 +210,6 @@ function startWorkout() {
     }, 1000);
 
     renderWorkoutCanvas();
-    
-    // Show Fullscreen UI
     const ui = document.getElementById('workout-active-view');
     ui.classList.remove('hidden');
     ui.classList.add('flex');
@@ -93,20 +217,17 @@ function startWorkout() {
 
 function finishWorkout() {
     if (activeWorkout.exercises.length === 0) {
-        if(confirm("El entrenamiento está vacío. ¿Cancelar?")) {
-            closeWorkoutUI();
-        }
+        if(confirm("El entrenamiento está vacío. ¿Cancelar?")) closeWorkoutUI();
         return;
     }
 
-    // Update name
     activeWorkout.name = document.getElementById('workout-name-input').value;
-    activeWorkout.duration = Math.floor(workoutSeconds / 60); // in minutes
+    activeWorkout.duration = Math.floor(workoutSeconds / 60);
     activeWorkout.date = new Date().toISOString();
 
-    // Clean up empty sets/exercises
+    // Clean up
     activeWorkout.exercises = activeWorkout.exercises.map(ex => {
-        ex.sets = ex.sets.filter(s => s.done); // Only save completed sets
+        ex.sets = ex.sets.filter(s => s.done);
         return ex;
     }).filter(ex => ex.sets.length > 0);
 
@@ -131,12 +252,13 @@ function closeWorkoutUI() {
     ui.classList.remove('flex');
 }
 
-// --- EXERCISE MODAL ---
+// --- EXERCISE MODALS & CUSTOM EXERCISES ---
 
-function openExerciseModal() {
-    const modal = document.getElementById('exercise-modal');
+function openExerciseModal(target) {
+    exerciseModalTarget = target; // 'workout' or 'routine'
     document.getElementById('exercise-search').value = '';
     renderExerciseList();
+    const modal = document.getElementById('exercise-modal');
     modal.classList.remove('hidden');
     modal.classList.add('flex', 'modal-enter');
     modal.classList.remove('modal-exit');
@@ -155,19 +277,18 @@ function closeExerciseModal() {
 function renderExerciseList(filter = '') {
     const container = document.getElementById('exercise-list-container');
     container.innerHTML = '';
-    
     const term = filter.toLowerCase();
+    const fullDB = getFullDB();
 
-    Object.keys(db).forEach(category => {
-        const exercises = db[category].filter(ex => ex.toLowerCase().includes(term));
+    Object.keys(fullDB).forEach(category => {
+        const exercises = fullDB[category].filter(ex => ex.toLowerCase().includes(term));
         if (exercises.length === 0) return;
 
-        // Group Header
-        container.innerHTML += `<p class="text-sm font-bold text-emerald-500 uppercase tracking-wider mb-2 mt-4">${category}</p>`;
+        container.innerHTML += `<p class="text-sm font-bold text-emerald-500 uppercase tracking-wider mb-2 mt-4 px-1">${category}</p>`;
         
         exercises.forEach(ex => {
             container.innerHTML += `
-                <div onclick="addExerciseToWorkout('${ex}', '${category}')" class="bg-slate-800 p-4 rounded-xl mb-2 flex justify-between items-center active:bg-slate-700 transition cursor-pointer border border-slate-700">
+                <div onclick="addExerciseToTarget('${ex}', '${category}')" class="bg-slate-800 p-4 rounded-xl mb-2 flex justify-between items-center active:bg-slate-700 transition cursor-pointer border border-slate-700 shadow-sm">
                     <span class="font-semibold text-white">${ex}</span>
                     <i class="fa-solid fa-plus text-emerald-400"></i>
                 </div>
@@ -176,23 +297,52 @@ function renderExerciseList(filter = '') {
     });
 }
 
-function addExerciseToWorkout(name, category) {
-    activeWorkout.exercises.push({
-        name: name,
-        category: category,
-        sets: [ { kg: '', reps: '', done: false } ] // Start with 1 empty set
-    });
+function addExerciseToTarget(name, category) {
+    if (exerciseModalTarget === 'workout') {
+        activeWorkout.exercises.push({
+            name: name, category: category,
+            sets: [ { kg: '', reps: '', done: false } ]
+        });
+        renderWorkoutCanvas();
+        setTimeout(() => {
+            const canvas = document.getElementById('workout-canvas');
+            canvas.scrollTop = canvas.scrollHeight;
+        }, 100);
+    } else if (exerciseModalTarget === 'routine') {
+        editingRoutine.exercises.push({ name, category });
+        renderRoutineCanvas();
+    }
     closeExerciseModal();
-    renderWorkoutCanvas();
-    
-    // Scroll to bottom
-    setTimeout(() => {
-        const canvas = document.getElementById('workout-canvas');
-        canvas.scrollTop = canvas.scrollHeight;
-    }, 100);
 }
 
-// --- WORKOUT CANVAS RENDERING (THE CORE APP ENGINE) ---
+// Custom Exercise Functions
+function openCustomExModal() {
+    document.getElementById('custom-ex-name').value = '';
+    const modal = document.getElementById('custom-ex-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex', 'modal-enter');
+}
+
+function closeCustomExModal() {
+    const modal = document.getElementById('custom-ex-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function saveCustomExercise() {
+    const name = document.getElementById('custom-ex-name').value.trim();
+    const cat = document.getElementById('custom-ex-cat').value;
+    
+    if(!name) return showToast("Por favor, ingresa un nombre.");
+    
+    state.customExercises.push({name, category: cat});
+    saveState();
+    closeCustomExModal();
+    renderExerciseList(document.getElementById('exercise-search').value);
+    showToast(`"${name}" añadido a tus ejercicios.`);
+}
+
+// --- WORKOUT CANVAS RENDERING ---
 
 function renderWorkoutCanvas() {
     const canvas = document.getElementById('workout-canvas');
@@ -237,7 +387,7 @@ function renderWorkoutCanvas() {
                         <p class="text-[10px] font-bold uppercase tracking-widest text-emerald-400 mb-1">${ex.category}</p>
                         <h3 class="font-bold text-lg text-white leading-tight">${ex.name}</h3>
                     </div>
-                    <button onclick="removeExercise(${exIndex})" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-rose-400 transition">
+                    <button onclick="removeExerciseFromWorkout(${exIndex})" class="w-8 h-8 flex items-center justify-center text-slate-500 hover:text-rose-400 transition">
                         <i class="fa-solid fa-trash-can"></i>
                     </button>
                 </div>
@@ -252,8 +402,8 @@ function renderWorkoutCanvas() {
                     
                     ${setsHtml}
                     
-                    <button onclick="addSet(${exIndex})" class="w-full mt-3 py-2 rounded-lg bg-slate-700/50 text-slate-300 font-medium text-sm hover:bg-slate-700 transition">
-                        + Añadir serie
+                    <button onclick="addSet(${exIndex})" class="w-full mt-3 py-3 rounded-xl bg-slate-700/50 text-slate-300 font-bold text-sm hover:bg-slate-700 transition border border-slate-700 border-dashed">
+                        + Añadir Serie
                     </button>
                 </div>
             </div>
@@ -263,13 +413,10 @@ function renderWorkoutCanvas() {
 
 function addSet(exIndex) {
     const ex = activeWorkout.exercises[exIndex];
-    // Copy prev set values if exists
-    let prevKg = '';
-    let prevReps = '';
+    let prevKg = '', prevReps = '';
     if (ex.sets.length > 0) {
         const last = ex.sets[ex.sets.length - 1];
-        prevKg = last.kg;
-        prevReps = last.reps;
+        prevKg = last.kg; prevReps = last.reps;
     }
     ex.sets.push({ kg: prevKg, reps: prevReps, done: false });
     renderWorkoutCanvas();
@@ -282,22 +429,16 @@ function updateSet(exIndex, setIndex, field, value) {
 function toggleSet(exIndex, setIndex) {
     const set = activeWorkout.exercises[exIndex].sets[setIndex];
     set.done = !set.done;
-    
-    // Validate inputs silently
     if(set.done) {
         if(!set.kg) set.kg = '0';
         if(!set.reps) set.reps = '0';
     }
-
-    renderWorkoutCanvas(); // Re-render to highlight row
-
-    if (set.done) {
-        startRestTimer(DEFAULT_REST);
-    }
+    renderWorkoutCanvas();
+    if (set.done) startRestTimer(DEFAULT_REST);
 }
 
-function removeExercise(exIndex) {
-    if(confirm("¿Eliminar ejercicio?")) {
+function removeExerciseFromWorkout(exIndex) {
+    if(confirm("¿Eliminar ejercicio del entrenamiento?")) {
         activeWorkout.exercises.splice(exIndex, 1);
         renderWorkoutCanvas();
     }
@@ -318,7 +459,6 @@ function startRestTimer(seconds) {
     const tick = () => {
         if(restTimerSeconds <= 0) {
             stopRestTimer();
-            // Vibrate if supported
             if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
             showToast("¡Tiempo de descanso terminado!");
             return;
@@ -329,7 +469,7 @@ function startRestTimer(seconds) {
         restTimerSeconds--;
     };
     
-    tick(); // call immediately
+    tick();
     restTimerInterval = setInterval(tick, 1000);
 }
 
@@ -338,7 +478,6 @@ function stopRestTimer() {
     document.getElementById('rest-timer-bubble').classList.add('hidden');
     document.getElementById('rest-timer-bubble').classList.remove('flex');
 }
-
 
 // --- DASHBOARD & HISTORY RENDERING ---
 
@@ -360,7 +499,6 @@ function renderDashboard() {
         });
     });
 
-    // Format big numbers
     document.getElementById('stat-workouts').innerText = totalWorkouts;
     document.getElementById('stat-volume').innerText = totalVolume > 1000 ? (totalVolume/1000).toFixed(1) + 'k' : totalVolume;
 
@@ -372,7 +510,7 @@ function renderHistory() {
     list.innerHTML = '';
 
     if (state.workouts.length === 0) {
-        list.innerHTML = '<div class="text-center p-10 text-slate-500 bg-slate-800/50 rounded-2xl border border-slate-700">Aún no hay historial.</div>';
+        list.innerHTML = '<div class="text-center p-10 text-slate-500 bg-slate-800/50 rounded-3xl shadow-inner border border-slate-700/50">Aún no hay historial.</div>';
         return;
     }
 
@@ -380,7 +518,6 @@ function renderHistory() {
         const dateObj = new Date(w.date);
         const dateStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
         
-        // Calculate volume for this specific workout
         let wVol = 0;
         let setCounts = 0;
         w.exercises.forEach(ex => {
@@ -390,22 +527,21 @@ function renderHistory() {
             });
         });
 
-        // Generate small summary of exercises
-        const exSummary = w.exercises.map(ex => `<span class="text-slate-400 text-xs mr-2 border border-slate-700 rounded px-1">${ex.sets.length}x ${ex.name}</span>`).join('');
+        const exSummary = w.exercises.map(ex => `<span class="text-slate-400 text-[10px] uppercase font-bold mr-2 border border-slate-700 bg-slate-900 rounded px-2 py-1 mb-1 inline-block">${ex.sets.length}x ${ex.name}</span>`).join('');
 
         list.innerHTML += `
-            <div class="bg-slate-800/80 rounded-2xl p-4 border border-slate-700 shadow-md">
-                <div class="flex justify-between items-start mb-3 border-b border-slate-700/50 pb-2">
+            <div class="bg-slate-800/80 rounded-2xl p-5 border border-slate-700 shadow-md">
+                <div class="flex justify-between items-start mb-3 border-b border-slate-700/50 pb-3">
                     <div>
-                        <h4 class="font-bold text-white">${w.name}</h4>
+                        <h4 class="font-bold text-white text-lg">${w.name}</h4>
                         <p class="text-xs text-emerald-400 font-medium mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} &bull; <i class="fa-regular fa-clock mx-1"></i>${w.duration}m</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm font-bold text-slate-300">${wVol} kg</p>
+                        <p class="text-sm font-bold text-slate-300">${wVol > 1000 ? (wVol/1000).toFixed(1)+'k' : wVol} kg</p>
                         <p class="text-xs text-slate-500">${setCounts} series</p>
                     </div>
                 </div>
-                <div class="flex flex-wrap gap-y-2 mt-2">
+                <div class="pt-1">
                     ${exSummary}
                 </div>
             </div>
@@ -428,31 +564,32 @@ document.getElementById('profile-form').addEventListener('submit', (e) => {
 });
 
 // --- UTILS & CORE ---
-
 function saveState() {
     localStorage.setItem('fitTrackPro_profile', JSON.stringify(state.profile));
     localStorage.setItem('fitTrackPro_workouts', JSON.stringify(state.workouts));
+    localStorage.setItem('fitTrackPro_routines', JSON.stringify(state.routines));
+    localStorage.setItem('fitTrackPro_customEx', JSON.stringify(state.customExercises));
 }
 
 function factoryReset() {
-    if(confirm("⚠ CUIDADO: Esto borrará permanentemente todo tu historial. ¿Continuar?")) {
+    if(confirm("⚠ CUIDADO: Esto borrará permanentemente todo. ¿Continuar?")) {
         localStorage.clear();
-        state.workouts = [];
+        state = { profile: {weight:80, height:175}, workouts: [], routines: [], customExercises: [] };
         saveState();
         renderDashboard();
+        renderRoutines();
+        renderHistory();
         showToast("Datos borrados de fábrica");
     }
 }
 
 function showToast(msg) {
     const t = document.createElement('div');
-    t.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-slate-700 z-[100] text-sm font-bold flex items-center gap-2 transition-all duration-300 -translate-y-10 opacity-0';
-    t.innerHTML = `<i class="fa-solid fa-bell text-emerald-400"></i> ${msg}`;
+    t.className = 'fixed top-4 left-1/2 transform -translate-x-1/2 bg-slate-800 text-white px-5 py-3 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.5)] border border-emerald-500/30 z-[100] text-sm font-bold flex items-center gap-2 transition-all duration-300 -translate-y-10 opacity-0';
+    t.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-400"></i> ${msg}`;
     document.body.appendChild(t);
     
-    requestAnimationFrame(() => {
-        t.classList.remove('-translate-y-10', 'opacity-0');
-    });
+    requestAnimationFrame(() => t.classList.remove('-translate-y-10', 'opacity-0'));
     
     setTimeout(() => {
         t.classList.add('-translate-y-10', 'opacity-0');
@@ -465,24 +602,16 @@ function initChart() {
     const ctx = document.getElementById('mainChart').getContext('2d');
     
     let grad = ctx.createLinearGradient(0, 0, 0, 200);
-    grad.addColorStop(0, 'rgba(52, 211, 153, 0.4)'); // Emerald 400
+    grad.addColorStop(0, 'rgba(52, 211, 153, 0.4)');
     grad.addColorStop(1, 'rgba(52, 211, 153, 0.0)');
 
     chartInstance = new Chart(ctx, {
         type: 'bar',
         data: { labels: [], datasets: [{
-            label: 'Volumen',
-            data: [],
-            backgroundColor: grad,
-            borderColor: '#34d399',
-            borderWidth: 2,
-            borderRadius: 6,
-            barThickness: 'flex',
-            maxBarThickness: 40
+            label: 'Volumen', data: [], backgroundColor: grad, borderColor: '#34d399', borderWidth: 2, borderRadius: 6, barThickness: 'flex', maxBarThickness: 40
         }]},
         options: {
-            responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
             scales: {
                 x: { grid: { display: false }, ticks: { color: '#64748b', font: {family: 'Inter', size: 10} } },
                 y: { grid: { color: '#1e293b', borderDash: [4, 4] }, border: {display: false}, ticks: { display: false } }
@@ -493,12 +622,10 @@ function initChart() {
 
 function updateChart(volumeData) {
     if(!chartInstance) return;
-    
-    // Sort dates
     const dates = Object.keys(volumeData).sort((a,b) => new Date(a) - new Date(b)).slice(-7);
     const vols = dates.map(d => volumeData[d]);
 
-    chartInstance.data.labels = dates.map(d => d.slice(5)); // MM-DD
+    chartInstance.data.labels = dates.map(d => d.slice(5));
     chartInstance.data.datasets[0].data = vols;
     chartInstance.update();
 }
