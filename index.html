@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FitTrack Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* Ocultar pestañas inactivas */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans pb-20">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white p-4 shadow-md sticky top-0 z-10">
+        <h1 class="text-xl font-bold text-center"><i class="fa-solid fa-dumbbell mr-2"></i>FitTrack Pro</h1>
+    </header>
+
+    <!-- Pestaña: Panel / Analíticas -->
+    <main id="tab-dashboard" class="tab-content active p-4 max-w-2xl mx-auto">
+        <h2 class="text-2xl font-bold mb-4 text-slate-700">Resumen</h2>
+        
+        <div class="grid grid-cols-2 gap-4 mb-6">
+            <div class="bg-white p-4 rounded-xl shadow border border-slate-100">
+                <p class="text-sm text-slate-500">Estado Físico (IMC)</p>
+                <p id="dashboard-imc" class="text-2xl font-bold text-blue-600">--</p>
+                <p id="dashboard-imc-label" class="text-xs text-slate-400 mt-1">Configura tu perfil</p>
+            </div>
+            <div class="bg-white p-4 rounded-xl shadow border border-slate-100">
+                <p class="text-sm text-slate-500">Último Peso</p>
+                <p id="dashboard-peso" class="text-2xl font-bold text-blue-600">-- kg</p>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow border border-slate-100 mb-6">
+            <h3 class="font-semibold mb-2">Evolución de Peso</h3>
+            <canvas id="weightChart" height="200"></canvas>
+        </div>
+
+        <div class="bg-white p-4 rounded-xl shadow border border-slate-100">
+            <h3 class="font-semibold mb-2">Historial de Entrenamientos</h3>
+            <div id="workout-history" class="space-y-3 mt-4 text-sm">
+                <!-- Se inyectará vía JS -->
+            </div>
+        </div>
+    </main>
+
+    <!-- Pestaña: Entrenamientos -->
+    <main id="tab-workout" class="tab-content p-4 max-w-2xl mx-auto">
+        <h2 class="text-2xl font-bold mb-4 text-slate-700">Registrar Entrenamiento</h2>
+        
+        <form id="workout-form" class="bg-white p-5 rounded-xl shadow border border-slate-100 space-y-4">
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Ejercicio</label>
+                <input type="text" id="exercise-name" required class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Ej: Press de banca">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Peso (kg)</label>
+                    <input type="number" step="0.5" id="exercise-weight" required class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Repeticiones</label>
+                    <input type="number" id="exercise-reps" required class="w-full border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 outline-none" placeholder="0">
+                </div>
+            </div>
+            <button type="submit" class="w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition">Guardar Serie</button>
+        </form>
+    </main>
+
+    <!-- Pestaña: Perfil y Medidas -->
+    <main id="tab-profile" class="tab-content p-4 max-w-2xl mx-auto">
+        <h2 class="text-2xl font-bold mb-4 text-slate-700">Mi Perfil</h2>
+        
+        <form id="profile-form" class="bg-white p-5 rounded-xl shadow border border-slate-100 space-y-4 mb-6">
+            <h3 class="font-semibold text-slate-700 border-b pb-2">Datos Base</h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Edad</label>
+                    <input type="number" id="profile-age" class="w-full border border-slate-300 rounded-lg p-2" placeholder="Ej: 30">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Sexo</label>
+                    <select id="profile-gender" class="w-full border border-slate-300 rounded-lg p-2">
+                        <option value="M">Hombre</option>
+                        <option value="F">Mujer</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-600 mb-1">Altura (cm)</label>
+                    <input type="number" id="profile-height" class="w-full border border-slate-300 rounded-lg p-2" placeholder="Ej: 175" value="175">
+                </div>
+            </div>
+            <button type="submit" class="w-full bg-slate-800 text-white font-semibold py-2 rounded-lg hover:bg-slate-900 transition">Actualizar Perfil</button>
+        </form>
+
+        <form id="metrics-form" class="bg-white p-5 rounded-xl shadow border border-slate-100 space-y-4">
+            <h3 class="font-semibold text-slate-700 border-b pb-2">Registro Mensual de Progreso</h3>
+            <p class="text-xs text-slate-500 mb-2">Actualiza esto una vez al mes para mantener tus gráficas al día.</p>
+            <div>
+                <label class="block text-sm font-medium text-slate-600 mb-1">Peso Actual (kg)</label>
+                <input type="number" step="0.1" id="metric-weight" required class="w-full border border-slate-300 rounded-lg p-2" placeholder="Ej: 80" value="80">
+            </div>
+            <button type="submit" class="w-full bg-green-600 text-white font-semibold py-2 rounded-lg hover:bg-green-700 transition">Registrar Medición</button>
+        </form>
+    </main>
+
+    <!-- Bottom Navigation Bar -->
+    <nav class="fixed bottom-0 w-full bg-white border-t border-slate-200 flex justify-around p-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+        <button onclick="switchTab('dashboard')" class="nav-btn flex flex-col items-center text-blue-600" data-target="dashboard">
+            <i class="fa-solid fa-chart-line text-xl"></i>
+            <span class="text-xs mt-1">Panel</span>
+        </button>
+        <button onclick="switchTab('workout')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-blue-600" data-target="workout">
+            <i class="fa-solid fa-plus-circle text-xl"></i>
+            <span class="text-xs mt-1">Entrenar</span>
+        </button>
+        <button onclick="switchTab('profile')" class="nav-btn flex flex-col items-center text-slate-400 hover:text-blue-600" data-target="profile">
+            <i class="fa-solid fa-user text-xl"></i>
+            <span class="text-xs mt-1">Perfil</span>
+        </button>
+    </nav>
+
+    <script src="app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
+        }
+    </script>
+</body>
+</html>
