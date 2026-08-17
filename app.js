@@ -16,7 +16,6 @@ let state = {
     customExercises: JSON.parse(localStorage.getItem('fitTrackPro_customEx')) || []
 };
 
-// Merged Database
 function getFullDB() {
     let db = JSON.parse(JSON.stringify(defaultDB));
     state.customExercises.forEach(ex => {
@@ -35,7 +34,7 @@ let exerciseModalTarget = 'workout'; // 'workout' or 'routine'
 
 let restTimerSeconds = 0;
 let restTimerInterval = null;
-const DEFAULT_REST = 90;
+let currentRestTime = 90;
 
 let chartInstance = null;
 
@@ -76,23 +75,24 @@ function renderRoutines() {
     list.innerHTML = '';
     
     if (state.routines.length === 0) {
-        list.innerHTML = '<div class="text-center p-10 text-slate-500 bg-slate-800/50 rounded-3xl border border-slate-700/50 shadow-inner">No tienes rutinas creadas.<br><span class="text-sm mt-2 block">Haz clic en + Crear para diseñar tu entrenamiento.</span></div>';
+        list.innerHTML = '<div class="text-center p-10 text-slate-500 bg-slate-800/50 rounded-3xl border border-slate-700/50 shadow-inner">No tienes rutinas creadas.<br><span class="text-sm mt-2 block">Haz clic en + Crear Rutina para programar tus pesos, series y descanso.</span></div>';
         return;
     }
 
     state.routines.forEach((r, i) => {
-        const exSummary = r.exercises.map(ex => ex.name).join(', ').substring(0, 45) + '...';
+        const exSummary = r.exercises.map(ex => `${ex.name} (${ex.sets.length} series)`).join(' • ');
         list.innerHTML += `
-            <div class="bg-slate-800/80 rounded-2xl p-4 border border-slate-700 shadow-md flex justify-between items-center group">
+            <div class="bg-slate-800/80 rounded-2xl p-5 border border-slate-700 shadow-md flex justify-between items-center group">
                 <div class="flex-1 pr-4">
                     <h4 class="font-bold text-white text-lg mb-1">${r.name}</h4>
-                    <p class="text-xs text-slate-400">${r.exercises.length} ejercicios &bull; ${exSummary}</p>
+                    <p class="text-xs text-emerald-400 font-medium mb-2"><i class="fa-solid fa-stopwatch mr-1"></i>Descanso: ${r.restTime || 90}s</p>
+                    <p class="text-xs text-slate-400 line-clamp-2">${exSummary}</p>
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="startWorkoutFromRoutine(${i})" class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center hover:bg-emerald-500 hover:text-slate-900 transition active:scale-95">
+                    <button onclick="startWorkoutFromRoutine(${i})" class="w-12 h-12 bg-emerald-500/20 text-emerald-400 rounded-xl flex items-center justify-center hover:bg-emerald-500 hover:text-slate-900 transition active:scale-95 shadow" title="Empezar entrenamiento">
                         <i class="fa-solid fa-play"></i>
                     </button>
-                    <button onclick="deleteRoutine(${i})" class="w-12 h-12 bg-slate-800 text-slate-500 rounded-xl flex items-center justify-center hover:text-rose-400 transition active:scale-95">
+                    <button onclick="deleteRoutine(${i})" class="w-12 h-12 bg-slate-800 text-slate-500 rounded-xl flex items-center justify-center hover:text-rose-400 transition active:scale-95" title="Eliminar rutina">
                         <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
@@ -102,8 +102,9 @@ function renderRoutines() {
 }
 
 function openRoutineEditor() {
-    editingRoutine = { name: '', exercises: [] };
+    editingRoutine = { name: '', restTime: 90, exercises: [] };
     document.getElementById('routine-name-input').value = '';
+    document.getElementById('routine-rest-input').value = '90';
     renderRoutineCanvas();
     const ui = document.getElementById('routine-editor-view');
     ui.classList.remove('hidden');
@@ -119,15 +120,18 @@ function closeRoutineEditor() {
 
 function saveRoutine() {
     const name = document.getElementById('routine-name-input').value.trim();
+    const restTime = parseInt(document.getElementById('routine-rest-input').value) || 90;
+    
     if (!name) return showToast("Por favor, ponle nombre a la rutina.");
     if (editingRoutine.exercises.length === 0) return showToast("Añade al menos un ejercicio.");
 
     editingRoutine.name = name;
+    editingRoutine.restTime = restTime;
     state.routines.push(editingRoutine);
     saveState();
     closeRoutineEditor();
     renderRoutines();
-    showToast("¡Rutina guardada exitosamente!");
+    showToast("¡Rutina guardada con éxito!");
 }
 
 function deleteRoutine(index) {
@@ -143,54 +147,96 @@ function renderRoutineCanvas() {
     canvas.innerHTML = '';
     
     if (editingRoutine.exercises.length === 0) {
-        canvas.innerHTML = '<div class="text-center p-8 text-slate-500"><i class="fa-solid fa-clipboard-list text-3xl mb-2 opacity-30"></i><p>Rutina vacía.</p></div>';
+        canvas.innerHTML = '<div class="text-center p-8 text-slate-500"><i class="fa-solid fa-clipboard-list text-3xl mb-2 opacity-30"></i><p>Rutina vacía. Añade ejercicios para configurar series y pesos.</p></div>';
         return;
     }
 
-    editingRoutine.exercises.forEach((ex, i) => {
-        canvas.innerHTML += `
-            <div class="bg-slate-800 p-4 rounded-xl flex justify-between items-center border border-slate-700 shadow-sm">
-                <div class="flex items-center gap-4">
-                    <div class="w-8 h-8 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-500 font-bold text-xs">${i+1}</div>
-                    <div>
-                        <p class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest leading-none mb-1">${ex.category}</p>
-                        <p class="text-white font-bold">${ex.name}</p>
-                    </div>
+    editingRoutine.exercises.forEach((ex, exIndex) => {
+        let setsHtml = '';
+        ex.sets.forEach((set, setIndex) => {
+            setsHtml += `
+                <div class="grid grid-cols-[30px_1fr_1fr_40px] gap-2 items-center mb-2">
+                    <span class="text-xs text-slate-500 font-bold text-center">${setIndex + 1}</span>
+                    <input type="number" step="0.5" value="${set.kg}" onchange="updateRoutineSet(${exIndex}, ${setIndex}, 'kg', this.value)" class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-center text-white text-sm font-bold outline-none focus:border-emerald-500" placeholder="kg">
+                    <input type="number" value="${set.reps}" onchange="updateRoutineSet(${exIndex}, ${setIndex}, 'reps', this.value)" class="bg-slate-950 border border-slate-700 rounded-lg p-2 text-center text-white text-sm font-bold outline-none focus:border-emerald-500" placeholder="reps">
+                    <button onclick="removeRoutineSet(${exIndex}, ${setIndex})" class="text-slate-500 hover:text-rose-400 p-1"><i class="fa-solid fa-xmark"></i></button>
                 </div>
-                <button onclick="removeExerciseFromRoutine(${i})" class="text-slate-500 hover:text-rose-400 p-2 transition">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+            `;
+        });
+
+        canvas.innerHTML += `
+            <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 space-y-3">
+                <div class="flex justify-between items-center border-b border-slate-700/50 pb-2">
+                    <div>
+                        <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-wider">${ex.category}</span>
+                        <h4 class="text-white font-bold text-base">${ex.name}</h4>
+                    </div>
+                    <button onclick="removeRoutineExercise(${exIndex})" class="text-slate-500 hover:text-rose-400 p-2"><i class="fa-solid fa-trash-can"></i></button>
+                </div>
+                <div>
+                    <div class="grid grid-cols-[30px_1fr_1fr_40px] gap-2 text-[10px] text-slate-400 font-semibold uppercase mb-1">
+                        <span class="text-center">Set</span>
+                        <span class="text-center">Objetivo kg</span>
+                        <span class="text-center">Objetivo Reps</span>
+                        <span></span>
+                    </div>
+                    ${setsHtml}
+                    <button onclick="addRoutineSet(${exIndex})" class="w-full mt-2 py-2 bg-slate-900 border border-slate-700 border-dashed rounded-lg text-slate-300 font-semibold text-xs hover:bg-slate-900/80 transition">
+                        + Añadir Serie Objetivo
+                    </button>
+                </div>
             </div>
         `;
     });
 }
 
-function removeExerciseFromRoutine(index) {
-    editingRoutine.exercises.splice(index, 1);
+function addRoutineSet(exIndex) {
+    const ex = editingRoutine.exercises[exIndex];
+    let prevKg = '', prevReps = '';
+    if (ex.sets.length > 0) {
+        prevKg = ex.sets[ex.sets.length - 1].kg;
+        prevReps = ex.sets[ex.sets.length - 1].reps;
+    }
+    ex.sets.push({ kg: prevKg, reps: prevReps });
+    renderRoutineCanvas();
+}
+
+function updateRoutineSet(exIndex, setIndex, field, value) {
+    editingRoutine.exercises[exIndex].sets[setIndex][field] = value;
+}
+
+function removeRoutineSet(exIndex, setIndex) {
+    editingRoutine.exercises[exIndex].sets.splice(setIndex, 1);
+    renderRoutineCanvas();
+}
+
+function removeRoutineExercise(exIndex) {
+    editingRoutine.exercises.splice(exIndex, 1);
     renderRoutineCanvas();
 }
 
 // --- ACTIVE WORKOUT LOGIC ---
 
-function startWorkout() {
-    initWorkoutObj("Entrenamiento Libre");
+function startFreeWorkout() {
+    initWorkoutObj("Entrenamiento Libre", 90);
 }
 
 function startWorkoutFromRoutine(index) {
     const routine = state.routines[index];
-    initWorkoutObj(routine.name);
+    initWorkoutObj(routine.name, routine.restTime || 90);
     
-    // Copy exercises with empty sets
+    // Copy exercises and predefined target sets directly ready to go
     activeWorkout.exercises = routine.exercises.map(ex => ({
         name: ex.name,
         category: ex.category,
-        sets: [ { kg: '', reps: '', done: false } ]
+        sets: ex.sets.map(s => ({ kg: s.kg, reps: s.reps, done: false }))
     }));
     
     renderWorkoutCanvas();
 }
 
-function initWorkoutObj(name) {
+function initWorkoutObj(name, restTime) {
+    currentRestTime = restTime;
     activeWorkout = {
         id: Date.now(),
         startTime: Date.now(),
@@ -225,7 +271,7 @@ function finishWorkout() {
     activeWorkout.duration = Math.floor(workoutSeconds / 60);
     activeWorkout.date = new Date().toISOString();
 
-    // Clean up
+    // Clean up uncompleted sets
     activeWorkout.exercises = activeWorkout.exercises.map(ex => {
         ex.sets = ex.sets.filter(s => s.done);
         return ex;
@@ -309,7 +355,7 @@ function addExerciseToTarget(name, category) {
             canvas.scrollTop = canvas.scrollHeight;
         }, 100);
     } else if (exerciseModalTarget === 'routine') {
-        editingRoutine.exercises.push({ name, category });
+        editingRoutine.exercises.push({ name, category, sets: [{ kg: '', reps: '' }] });
         renderRoutineCanvas();
     }
     closeExerciseModal();
@@ -342,7 +388,7 @@ function saveCustomExercise() {
     showToast(`"${name}" añadido a tus ejercicios.`);
 }
 
-// --- WORKOUT CANVAS RENDERING ---
+// --- WORKOUT CANVAS RENDERING (MODIFIABLE ON THE FLY) ---
 
 function renderWorkoutCanvas() {
     const canvas = document.getElementById('workout-canvas');
@@ -368,13 +414,13 @@ function renderWorkoutCanvas() {
                 <div class="grid grid-cols-[30px_1fr_1fr_40px] gap-3 items-center p-2 rounded-lg mb-1 ${rowClass}">
                     <div class="text-center font-bold text-slate-500 text-sm">${setIndex + 1}</div>
                     <div>
-                        <input type="number" step="0.5" value="${set.kg}" onchange="updateSet(${exIndex}, ${setIndex}, 'kg', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-center text-white font-bold outline-none focus:border-emerald-500 placeholder-slate-600" placeholder="kg">
+                        <input type="number" step="0.5" value="${set.kg}" onchange="updateWorkoutSet(${exIndex}, ${setIndex}, 'kg', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-center text-white font-bold outline-none focus:border-emerald-500 placeholder-slate-600" placeholder="kg">
                     </div>
                     <div>
-                        <input type="number" value="${set.reps}" onchange="updateSet(${exIndex}, ${setIndex}, 'reps', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-center text-white font-bold outline-none focus:border-emerald-500 placeholder-slate-600" placeholder="reps">
+                        <input type="number" value="${set.reps}" onchange="updateWorkoutSet(${exIndex}, ${setIndex}, 'reps', this.value)" class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2 text-center text-white font-bold outline-none focus:border-emerald-500 placeholder-slate-600" placeholder="reps">
                     </div>
                     <div class="flex justify-center">
-                        <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleSet(${exIndex}, ${setIndex})" class="set-checkbox">
+                        <input type="checkbox" ${isDone ? 'checked' : ''} onchange="toggleWorkoutSet(${exIndex}, ${setIndex})" class="set-checkbox">
                     </div>
                 </div>
             `;
@@ -402,8 +448,8 @@ function renderWorkoutCanvas() {
                     
                     ${setsHtml}
                     
-                    <button onclick="addSet(${exIndex})" class="w-full mt-3 py-3 rounded-xl bg-slate-700/50 text-slate-300 font-bold text-sm hover:bg-slate-700 transition border border-slate-700 border-dashed">
-                        + Añadir Serie
+                    <button onclick="addWorkoutSet(${exIndex})" class="w-full mt-3 py-3 rounded-xl bg-slate-700/50 text-slate-300 font-bold text-sm hover:bg-slate-700 transition border border-slate-700 border-dashed">
+                        + Añadir Serie sobre la marcha
                     </button>
                 </div>
             </div>
@@ -411,7 +457,7 @@ function renderWorkoutCanvas() {
     });
 }
 
-function addSet(exIndex) {
+function addWorkoutSet(exIndex) {
     const ex = activeWorkout.exercises[exIndex];
     let prevKg = '', prevReps = '';
     if (ex.sets.length > 0) {
@@ -422,11 +468,11 @@ function addSet(exIndex) {
     renderWorkoutCanvas();
 }
 
-function updateSet(exIndex, setIndex, field, value) {
+function updateWorkoutSet(exIndex, setIndex, field, value) {
     activeWorkout.exercises[exIndex].sets[setIndex][field] = value;
 }
 
-function toggleSet(exIndex, setIndex) {
+function toggleWorkoutSet(exIndex, setIndex) {
     const set = activeWorkout.exercises[exIndex].sets[setIndex];
     set.done = !set.done;
     if(set.done) {
@@ -434,7 +480,7 @@ function toggleSet(exIndex, setIndex) {
         if(!set.reps) set.reps = '0';
     }
     renderWorkoutCanvas();
-    if (set.done) startRestTimer(DEFAULT_REST);
+    if (set.done) startRestTimer(currentRestTime);
 }
 
 function removeExerciseFromWorkout(exIndex) {
@@ -479,30 +525,37 @@ function stopRestTimer() {
     document.getElementById('rest-timer-bubble').classList.remove('flex');
 }
 
-// --- DASHBOARD & HISTORY RENDERING ---
+// --- DASHBOARD & ANALYTICS RENDERING (RELEVANT METRICS) ---
 
 function renderDashboard() {
     let totalWorkouts = state.workouts.length;
-    let totalVolume = 0;
-    let volumePerDate = {};
+    let totalSetsCompleted = 0;
+    let totalDurationSum = 0;
+    let setsPerDate = {};
 
     state.workouts.forEach(w => {
         const dStr = w.date.split('T')[0];
-        if(!volumePerDate[dStr]) volumePerDate[dStr] = 0;
+        if(!setsPerDate[dStr]) setsPerDate[dStr] = 0;
         
+        totalDurationSum += (w.duration || 0);
+
         w.exercises.forEach(ex => {
             ex.sets.forEach(set => {
-                const vol = (parseFloat(set.kg) || 0) * (parseInt(set.reps) || 0);
-                totalVolume += vol;
-                volumePerDate[dStr] += vol;
+                if(set.done) {
+                    totalSetsCompleted++;
+                    setsPerDate[dStr]++;
+                }
             });
         });
     });
 
-    document.getElementById('stat-workouts').innerText = totalWorkouts;
-    document.getElementById('stat-volume').innerText = totalVolume > 1000 ? (totalVolume/1000).toFixed(1) + 'k' : totalVolume;
+    const avgTime = totalWorkouts > 0 ? Math.round(totalDurationSum / totalWorkouts) : 0;
 
-    updateChart(volumePerDate);
+    document.getElementById('stat-workouts').innerText = totalWorkouts;
+    document.getElementById('stat-sets').innerText = totalSetsCompleted;
+    document.getElementById('stat-avg-time').innerText = avgTime;
+
+    updateChart(setsPerDate);
 }
 
 function renderHistory() {
@@ -518,27 +571,22 @@ function renderHistory() {
         const dateObj = new Date(w.date);
         const dateStr = dateObj.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
         
-        let wVol = 0;
         let setCounts = 0;
         w.exercises.forEach(ex => {
-            ex.sets.forEach(s => {
-                wVol += (parseFloat(s.kg)||0) * (parseInt(s.reps)||0);
-                setCounts++;
-            });
+            ex.sets.forEach(s => { if(s.done) setCounts++; });
         });
 
-        const exSummary = w.exercises.map(ex => `<span class="text-slate-400 text-[10px] uppercase font-bold mr-2 border border-slate-700 bg-slate-900 rounded px-2 py-1 mb-1 inline-block">${ex.sets.length}x ${ex.name}</span>`).join('');
+        const exSummary = w.exercises.map(ex => `<span class="text-slate-300 text-[10px] uppercase font-bold mr-2 border border-slate-700 bg-slate-900 rounded px-2 py-1 mb-1 inline-block">${ex.sets.length}x ${ex.name}</span>`).join('');
 
         list.innerHTML += `
             <div class="bg-slate-800/80 rounded-2xl p-5 border border-slate-700 shadow-md">
                 <div class="flex justify-between items-start mb-3 border-b border-slate-700/50 pb-3">
                     <div>
                         <h4 class="font-bold text-white text-lg">${w.name}</h4>
-                        <p class="text-xs text-emerald-400 font-medium mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} &bull; <i class="fa-regular fa-clock mx-1"></i>${w.duration}m</p>
+                        <p class="text-xs text-emerald-400 font-medium mt-1"><i class="fa-regular fa-calendar mr-1"></i>${dateStr} &bull; <i class="fa-regular fa-clock mx-1"></i>${w.duration} min</p>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm font-bold text-slate-300">${wVol > 1000 ? (wVol/1000).toFixed(1)+'k' : wVol} kg</p>
-                        <p class="text-xs text-slate-500">${setCounts} series</p>
+                        <span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-full font-bold text-xs">${setCounts} series efectivas</span>
                     </div>
                 </div>
                 <div class="pt-1">
@@ -597,7 +645,7 @@ function showToast(msg) {
     }, 3000);
 }
 
-// --- CHARTJS ---
+// --- CHARTJS (RELEVANT METRICS: SETS PER SESSION) ---
 function initChart() {
     const ctx = document.getElementById('mainChart').getContext('2d');
     
@@ -608,24 +656,24 @@ function initChart() {
     chartInstance = new Chart(ctx, {
         type: 'bar',
         data: { labels: [], datasets: [{
-            label: 'Volumen', data: [], backgroundColor: grad, borderColor: '#34d399', borderWidth: 2, borderRadius: 6, barThickness: 'flex', maxBarThickness: 40
+            label: 'Series Efectivas', data: [], backgroundColor: grad, borderColor: '#34d399', borderWidth: 2, borderRadius: 6, barThickness: 'flex', maxBarThickness: 40
         }]},
         options: {
             responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
             scales: {
                 x: { grid: { display: false }, ticks: { color: '#64748b', font: {family: 'Inter', size: 10} } },
-                y: { grid: { color: '#1e293b', borderDash: [4, 4] }, border: {display: false}, ticks: { display: false } }
+                y: { grid: { color: '#1e293b', borderDash: [4, 4] }, border: {display: false}, ticks: { precision:0, color: '#94a3b8' } }
             }
         }
     });
 }
 
-function updateChart(volumeData) {
+function updateChart(setsData) {
     if(!chartInstance) return;
-    const dates = Object.keys(volumeData).sort((a,b) => new Date(a) - new Date(b)).slice(-7);
-    const vols = dates.map(d => volumeData[d]);
+    const dates = Object.keys(setsData).sort((a,b) => new Date(a) - new Date(b)).slice(-7);
+    const setCounts = dates.map(d => setsData[d]);
 
     chartInstance.data.labels = dates.map(d => d.slice(5));
-    chartInstance.data.datasets[0].data = vols;
+    chartInstance.data.datasets[0].data = setCounts;
     chartInstance.update();
 }
