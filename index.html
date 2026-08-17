@@ -3,195 +3,202 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>FitTrack Pro</title>
+    <title>FitTrack Ultimate</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#020617">
+    <meta name="theme-color" content="#0f172a">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        .tab-content { display: none; opacity: 0; transition: opacity 0.3s ease; }
-        .tab-content.active { display: block; opacity: 1; animation: fadeIn 0.4s ease forwards; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; -webkit-print-color-adjust: exact; color-adjust: exact; }
+        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+        .view-section { display: none; opacity: 0; transition: opacity 0.2s ease-in-out; }
+        .view-section.active { display: block; opacity: 1; }
+        
+        /* Ocultar flechas de inputs numéricos */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        
+        /* Modal Animation */
+        .modal-enter { animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        .modal-exit { animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes slideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
+        
+        /* Custom Checkbox */
+        .set-checkbox { appearance: none; width: 2rem; height: 2rem; border-radius: 0.5rem; border: 2px solid #334155; background: transparent; transition: all 0.2s; display: grid; place-items: center; }
+        .set-checkbox::before { content: ""; width: 1rem; height: 1rem; background-color: transparent; transition: 0.2s transform ease-in-out; transform: scale(0); clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%); }
+        .set-checkbox:checked { background-color: #10b981; border-color: #10b981; }
+        .set-checkbox:checked::before { transform: scale(1); background-color: white; }
+        
+        /* Row highlight when done */
+        .set-row.done { background-color: rgba(16, 185, 129, 0.05); }
+        .set-row.done input { color: #10b981; }
     </style>
 </head>
-<body class="bg-slate-950 text-slate-200 pb-24 antialiased selection:bg-emerald-500 selection:text-white">
+<body class="bg-slate-900 text-slate-200 antialiased h-screen overflow-hidden flex flex-col">
 
-    <!-- Header Glassmorphism -->
-    <header class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex justify-between items-center">
-        <h1 class="text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-500 bg-clip-text text-transparent">
-            FitTrack Pro
+    <!-- TOP HEADER -->
+    <header id="main-header" class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 px-5 py-4 flex justify-between items-center z-40 shrink-0">
+        <h1 class="text-2xl font-extrabold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
+            FitTrack
         </h1>
-        <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
-            <i class="fa-solid fa-chart-simple text-xs text-emerald-500"></i>
-        </div>
+        <button onclick="switchView('profile')" class="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700 text-slate-400 hover:text-emerald-400 transition">
+            <i class="fa-solid fa-user-gear text-sm"></i>
+        </button>
     </header>
 
-    <!-- Pestaña: Dashboard -->
-    <main id="tab-dashboard" class="tab-content active px-4 py-6 max-w-xl mx-auto space-y-6">
+    <!-- MAIN SCROLLABLE CONTENT -->
+    <main class="flex-1 overflow-y-auto pb-24 relative" id="main-container">
         
-        <!-- Tarjetas de Resumen -->
-        <div class="grid grid-cols-2 gap-4">
-            <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 shadow-lg relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-dumbbell text-4xl"></i></div>
-                <p class="text-sm text-slate-400 font-medium mb-1">Volumen Total</p>
-                <p id="dashboard-volume" class="text-3xl font-bold text-white">-- <span class="text-lg text-slate-500 font-normal">kg</span></p>
-            </div>
-            <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 shadow-lg relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-stopwatch text-4xl"></i></div>
-                <p class="text-sm text-slate-400 font-medium mb-1">Tiempo Entrenado</p>
-                <div class="flex items-baseline gap-2">
-                    <p id="dashboard-time" class="text-3xl font-bold text-white">-- <span class="text-lg text-slate-500 font-normal">h</span></p>
-                </div>
-            </div>
-        </div>
-
-        <!-- Gráfica Profesional -->
-        <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 shadow-lg">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="font-semibold text-white">Progreso (Volumen kg)</h3>
-                <span class="text-xs bg-slate-800 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-md">Últimas sesiones</span>
-            </div>
-            <div class="h-56 w-full">
-                <canvas id="progressChart"></canvas>
-            </div>
-        </div>
-
-        <!-- Actividad Reciente -->
-        <div>
-            <div class="flex justify-between items-end mb-4 px-1">
-                <h3 class="font-semibold text-white">Historial de Entrenamientos</h3>
-            </div>
-            <div id="workout-history" class="space-y-3">
-                <!-- Inyectado vía JS -->
-            </div>
-        </div>
-    </main>
-
-    <!-- Pestaña: Registrar Entrenamiento -->
-    <main id="tab-workout" class="tab-content px-4 py-6 max-w-xl mx-auto">
-        <div class="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-lg">
-            <div class="text-center mb-6">
-                <div class="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-emerald-500/20">
-                    <i class="fa-solid fa-plus text-emerald-500 text-xl"></i>
-                </div>
-                <h2 class="text-xl font-bold text-white">Registrar Serie</h2>
-                <p class="text-sm text-slate-400">Selecciona y guarda tu progreso</p>
+        <!-- DASHBOARD VIEW -->
+        <section id="view-dashboard" class="view-section active p-5 max-w-2xl mx-auto space-y-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-bold text-white">Resumen</h2>
+                <span class="text-xs font-semibold bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">Últimos 30 días</span>
             </div>
             
-            <form id="workout-form" class="space-y-5">
-                <!-- Fecha y Tiempo -->
-                <div class="grid grid-cols-2 gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800/50">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Día</label>
-                        <input type="date" id="workout-date" required class="w-full bg-transparent text-white focus:outline-none font-medium">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tiempo (min)</label>
-                        <input type="number" id="workout-duration" required class="w-full bg-transparent text-white focus:outline-none font-medium" placeholder="Ej: 60">
-                    </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-slate-800/50 rounded-3xl p-5 border border-slate-700/50">
+                    <p class="text-sm text-slate-400 font-medium mb-1"><i class="fa-solid fa-fire text-orange-500 mr-2"></i>Entrenamientos</p>
+                    <p id="stat-workouts" class="text-3xl font-bold text-white">0</p>
                 </div>
+                <div class="bg-slate-800/50 rounded-3xl p-5 border border-slate-700/50">
+                    <p class="text-sm text-slate-400 font-medium mb-1"><i class="fa-solid fa-dumbbell text-emerald-500 mr-2"></i>Volumen (kg)</p>
+                    <p id="stat-volume" class="text-3xl font-bold text-white">0</p>
+                </div>
+            </div>
 
-                <!-- Selección de Ejercicio -->
-                <div class="space-y-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Categoría Muscular</label>
-                        <select id="exercise-category" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition appearance-none">
-                            <option value="" disabled selected>Selecciona un grupo...</option>
-                            <!-- Rellenado por JS -->
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Ejercicio</label>
-                        <select id="exercise-name" required disabled class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition appearance-none opacity-50">
-                            <option value="" disabled selected>Elige categoría primero</option>
-                        </select>
-                    </div>
-                </div>
+            <div class="bg-slate-800/50 rounded-3xl p-5 border border-slate-700/50">
+                <h3 class="font-semibold text-white mb-4">Progresión de Volumen</h3>
+                <div class="h-48 w-full"><canvas id="mainChart"></canvas></div>
+            </div>
+        </section>
 
-                <!-- Series, Reps, Peso -->
-                <div class="grid grid-cols-3 gap-3">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2 text-center">Series</label>
-                        <input type="number" id="exercise-sets" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-center text-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="3">
+        <!-- HISTORY VIEW -->
+        <section id="view-history" class="view-section p-5 max-w-2xl mx-auto">
+            <h2 class="text-xl font-bold text-white mb-6">Historial</h2>
+            <div id="history-list" class="space-y-4">
+                <!-- Inyectado por JS -->
+            </div>
+        </section>
+
+        <!-- PROFILE VIEW -->
+        <section id="view-profile" class="view-section p-5 max-w-2xl mx-auto space-y-6">
+            <h2 class="text-xl font-bold text-white mb-4">Ajustes y Perfil</h2>
+            
+            <div class="bg-slate-800/50 rounded-3xl p-6 border border-slate-700/50">
+                <form id="profile-form" class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Peso (kg)</label>
+                            <input type="number" step="0.1" id="profile-weight" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white text-lg font-semibold focus:border-emerald-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Altura (cm)</label>
+                            <input type="number" id="profile-height" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-4 text-white text-lg font-semibold focus:border-emerald-500 outline-none">
+                        </div>
                     </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2 text-center">Reps</label>
-                        <input type="number" id="exercise-reps" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-center text-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="10">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2 text-center">Peso (kg)</label>
-                        <input type="number" step="0.5" id="exercise-weight" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-center text-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="0">
-                    </div>
-                </div>
-                
-                <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold py-4 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transform active:scale-[0.98] transition-all flex justify-center items-center gap-2">
-                    <i class="fa-solid fa-check"></i> Registrar Serie
-                </button>
-            </form>
-        </div>
+                    <button type="submit" class="w-full bg-slate-700 text-white font-bold py-4 rounded-xl hover:bg-slate-600 transition">
+                        Guardar Cambios
+                    </button>
+                </form>
+            </div>
+            
+            <button onclick="factoryReset()" class="w-full py-4 text-rose-500 font-semibold bg-rose-500/10 rounded-xl border border-rose-500/20">
+                Borrar todos los datos
+            </button>
+        </section>
+
     </main>
 
-    <!-- Pestaña: Perfil -->
-    <main id="tab-profile" class="tab-content px-4 py-6 max-w-xl mx-auto space-y-6">
+    <!-- BOTTOM NAVIGATION -->
+    <nav id="bottom-nav" class="fixed bottom-0 w-full bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 pb-safe pt-2 px-6 flex justify-between items-center z-40 shrink-0 shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <button onclick="switchView('history')" class="nav-btn w-16 h-14 flex flex-col items-center justify-center text-slate-500 hover:text-white transition" data-target="history">
+            <i class="fa-solid fa-clock-rotate-left text-xl mb-1"></i>
+            <span class="text-[10px] font-medium">Historial</span>
+        </button>
         
-        <!-- Ajustes de Usuario -->
-        <div class="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-lg">
-            <h3 class="font-semibold text-white mb-4">Datos Biométricos</h3>
-            <form id="profile-form" class="space-y-4">
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-400 mb-1">Edad</label>
-                        <input type="number" id="profile-age" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-1 focus:ring-emerald-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-400 mb-1">Sexo</label>
-                        <select id="profile-gender" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-1 focus:ring-emerald-500 outline-none appearance-none">
-                            <option value="M">Hombre</option>
-                            <option value="F">Mujer</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="grid grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm font-medium text-slate-400 mb-1">Altura (cm)</label>
-                        <input type="number" id="profile-height" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-1 focus:ring-emerald-500 outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-sm font-medium text-slate-400 mb-1">Peso actual (kg)</label>
-                        <input type="number" step="0.1" id="profile-weight" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-1 focus:ring-emerald-500 outline-none">
-                    </div>
-                </div>
-                <button type="submit" class="w-full bg-slate-800 text-white font-semibold py-3 rounded-xl border border-slate-700 hover:bg-slate-700 transition">
-                    Guardar Perfil
-                </button>
-            </form>
+        <!-- FAB (Floating Action Button) for New Workout -->
+        <div class="relative -top-6">
+            <button onclick="startWorkout()" class="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-emerald-400 rounded-full flex items-center justify-center text-white text-2xl shadow-[0_0_20px_rgba(16,185,129,0.4)] hover:scale-105 transition transform active:scale-95">
+                <i class="fa-solid fa-plus"></i>
+            </button>
         </div>
-        
-        <div class="text-center">
-             <button onclick="clearData()" class="text-sm text-rose-500 hover:text-rose-400 underline decoration-rose-500/30 underline-offset-4 transition">Borrar todos mis datos</button>
-        </div>
-    </main>
 
-    <!-- Bottom Nav -->
-    <nav class="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-slate-900/90 backdrop-blur-lg border border-slate-800 rounded-3xl flex justify-around p-2 shadow-2xl z-50">
-        <button onclick="switchTab('dashboard')" class="nav-btn active flex flex-col items-center justify-center w-16 h-14 rounded-2xl text-emerald-400 bg-slate-800/50 transition-all" data-target="dashboard">
+        <button onclick="switchView('dashboard')" class="nav-btn active w-16 h-14 flex flex-col items-center justify-center text-emerald-400 transition" data-target="dashboard">
             <i class="fa-solid fa-chart-pie text-xl mb-1"></i>
             <span class="text-[10px] font-medium">Panel</span>
         </button>
-        <button onclick="switchTab('workout')" class="nav-btn flex flex-col items-center justify-center w-16 h-14 rounded-2xl text-slate-400 hover:text-emerald-400 transition-all" data-target="workout">
-            <i class="fa-solid fa-plus-circle text-xl mb-1"></i>
-            <span class="text-[10px] font-medium">Entrenar</span>
-        </button>
-        <button onclick="switchTab('profile')" class="nav-btn flex flex-col items-center justify-center w-16 h-14 rounded-2xl text-slate-400 hover:text-emerald-400 transition-all" data-target="profile">
-            <i class="fa-solid fa-user-gear text-xl mb-1"></i>
-            <span class="text-[10px] font-medium">Perfil</span>
-        </button>
     </nav>
+
+    <!-- ========================================== -->
+    <!-- OVERLAYS & MODALS (HIDDEN BY DEFAULT)      -->
+    <!-- ========================================== -->
+
+    <!-- ACTIVE WORKOUT FULLSCREEN OVERLAY -->
+    <div id="workout-active-view" class="fixed inset-0 bg-slate-950 z-[60] hidden flex-col">
+        <!-- Workout Header -->
+        <div class="bg-slate-900 border-b border-slate-800 px-4 py-3 flex justify-between items-center shrink-0">
+            <div>
+                <input type="text" id="workout-name-input" value="Entrenamiento de hoy" class="bg-transparent text-white font-bold text-lg outline-none w-full">
+                <div class="flex items-center gap-2 mt-1">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <span id="workout-timer-display" class="text-sm font-medium text-emerald-400">00:00</span>
+                </div>
+            </div>
+            <button onclick="finishWorkout()" class="bg-emerald-500 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm active:scale-95 transition">
+                Finalizar
+            </button>
+        </div>
+
+        <!-- Workout Canvas (Exercises go here) -->
+        <div id="workout-canvas" class="flex-1 overflow-y-auto p-4 space-y-6 pb-32">
+            <!-- Ejercicios inyectados por JS -->
+            <div id="empty-workout-msg" class="text-center text-slate-500 mt-10">
+                <i class="fa-solid fa-dumbbell text-4xl mb-3 opacity-20"></i>
+                <p>Tu entrenamiento está vacío.</p>
+                <p class="text-sm">Añade un ejercicio para empezar.</p>
+            </div>
+        </div>
+
+        <!-- Add Exercise Button (Fixed Bottom inside workout) -->
+        <div class="absolute bottom-6 w-full px-4 shrink-0">
+            <button onclick="openExerciseModal()" class="w-full bg-slate-800 text-emerald-400 border border-slate-700 font-bold py-4 rounded-2xl shadow-lg active:bg-slate-700 transition flex items-center justify-center gap-2">
+                <i class="fa-solid fa-plus"></i> Añadir Ejercicio
+            </button>
+        </div>
+    </div>
+
+    <!-- ADD EXERCISE MODAL -->
+    <div id="exercise-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[70] hidden flex-col justify-end">
+        <div class="bg-slate-900 w-full h-[85vh] rounded-t-3xl border-t border-slate-700 flex flex-col shadow-[0_-10px_50px_rgba(0,0,0,0.5)]">
+            <div class="p-4 border-b border-slate-800 flex justify-between items-center shrink-0">
+                <h3 class="text-lg font-bold text-white">Seleccionar Ejercicio</h3>
+                <button onclick="closeExerciseModal()" class="w-8 h-8 bg-slate-800 rounded-full text-slate-400 flex items-center justify-center">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="p-4 shrink-0">
+                <div class="relative">
+                    <i class="fa-solid fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-500"></i>
+                    <input type="text" id="exercise-search" placeholder="Buscar ejercicio..." class="w-full bg-slate-950 border border-slate-800 rounded-xl pl-12 pr-4 py-3 text-white focus:border-emerald-500 outline-none">
+                </div>
+            </div>
+
+            <div id="exercise-list-container" class="flex-1 overflow-y-auto p-4 space-y-6">
+                <!-- Lista inyectada por JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- REST TIMER FLOATING BUBBLE -->
+    <div id="rest-timer-bubble" class="fixed top-20 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-5 py-2 rounded-full shadow-lg border border-blue-400 z-[80] font-bold text-lg hidden items-center gap-3 cursor-pointer shadow-[0_0_20px_rgba(37,99,235,0.5)]" onclick="stopRestTimer()">
+        <i class="fa-solid fa-stopwatch animate-pulse"></i>
+        <span id="rest-timer-time">01:30</span>
+        <i class="fa-solid fa-xmark text-sm opacity-50 ml-1"></i>
+    </div>
 
     <script src="app.js"></script>
 </body>

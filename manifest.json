@@ -1,10 +1,10 @@
 {
-  "name": "FitTrack Pro",
+  "name": "FitTrack Ultimate",
   "short_name": "FitTrack",
   "start_url": "./index.html",
   "display": "standalone",
-  "background_color": "#020617",
-  "theme_color": "#10b981",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
   "orientation": "portrait-primary",
   "icons": [
     {
