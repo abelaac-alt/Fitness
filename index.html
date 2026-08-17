@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>FitTrack Pro</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#020617"> <!-- slate-950 -->
+    <meta name="theme-color" content="#020617">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -15,8 +15,8 @@
         .tab-content { display: none; opacity: 0; transition: opacity 0.3s ease; }
         .tab-content.active { display: block; opacity: 1; animation: fadeIn 0.4s ease forwards; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        /* Ocultar flechas de inputs numéricos */
         input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        select { background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e"); background-position: right 0.5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; -webkit-print-color-adjust: exact; color-adjust: exact; }
     </style>
 </head>
 <body class="bg-slate-950 text-slate-200 pb-24 antialiased selection:bg-emerald-500 selection:text-white">
@@ -24,48 +24,47 @@
     <!-- Header Glassmorphism -->
     <header class="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-md border-b border-slate-800 px-6 py-4 flex justify-between items-center">
         <h1 class="text-2xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-cyan-500 bg-clip-text text-transparent">
-            FitTrack
+            FitTrack Pro
         </h1>
         <div class="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center border border-slate-700">
-            <i class="fa-solid fa-user text-xs text-slate-400"></i>
+            <i class="fa-solid fa-chart-simple text-xs text-emerald-500"></i>
         </div>
     </header>
 
     <!-- Pestaña: Dashboard -->
     <main id="tab-dashboard" class="tab-content active px-4 py-6 max-w-xl mx-auto space-y-6">
         
-        <!-- Tarjetas de Resumen (Métricas Clave) -->
+        <!-- Tarjetas de Resumen -->
         <div class="grid grid-cols-2 gap-4">
             <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 shadow-lg relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-weight-scale text-4xl"></i></div>
-                <p class="text-sm text-slate-400 font-medium mb-1">Peso Actual</p>
-                <p id="dashboard-peso" class="text-3xl font-bold text-white">-- <span class="text-lg text-slate-500 font-normal">kg</span></p>
+                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-dumbbell text-4xl"></i></div>
+                <p class="text-sm text-slate-400 font-medium mb-1">Volumen Total</p>
+                <p id="dashboard-volume" class="text-3xl font-bold text-white">-- <span class="text-lg text-slate-500 font-normal">kg</span></p>
             </div>
             <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 shadow-lg relative overflow-hidden">
-                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-heart-pulse text-4xl"></i></div>
-                <p class="text-sm text-slate-400 font-medium mb-1">Estado Físico (IMC)</p>
+                <div class="absolute top-0 right-0 p-4 opacity-10"><i class="fa-solid fa-stopwatch text-4xl"></i></div>
+                <p class="text-sm text-slate-400 font-medium mb-1">Tiempo Entrenado</p>
                 <div class="flex items-baseline gap-2">
-                    <p id="dashboard-imc" class="text-3xl font-bold text-white">--</p>
+                    <p id="dashboard-time" class="text-3xl font-bold text-white">-- <span class="text-lg text-slate-500 font-normal">h</span></p>
                 </div>
-                <p id="dashboard-imc-label" class="text-xs text-slate-500 mt-1">Configura tu perfil</p>
             </div>
         </div>
 
-        <!-- Gráfica -->
+        <!-- Gráfica Profesional -->
         <div class="bg-slate-900 rounded-3xl p-5 border border-slate-800 shadow-lg">
             <div class="flex justify-between items-center mb-4">
-                <h3 class="font-semibold text-white">Evolución de Peso</h3>
-                <span class="text-xs bg-slate-800 text-slate-300 px-2 py-1 rounded-md">Últimos meses</span>
+                <h3 class="font-semibold text-white">Progreso (Volumen kg)</h3>
+                <span class="text-xs bg-slate-800 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-md">Últimas sesiones</span>
             </div>
-            <div class="h-48 w-full">
-                <canvas id="weightChart"></canvas>
+            <div class="h-56 w-full">
+                <canvas id="progressChart"></canvas>
             </div>
         </div>
 
         <!-- Actividad Reciente -->
         <div>
             <div class="flex justify-between items-end mb-4 px-1">
-                <h3 class="font-semibold text-white">Actividad Reciente</h3>
+                <h3 class="font-semibold text-white">Historial de Entrenamientos</h3>
             </div>
             <div id="workout-history" class="space-y-3">
                 <!-- Inyectado vía JS -->
@@ -77,32 +76,61 @@
     <main id="tab-workout" class="tab-content px-4 py-6 max-w-xl mx-auto">
         <div class="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-lg">
             <div class="text-center mb-6">
-                <div class="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <i class="fa-solid fa-dumbbell text-emerald-500 text-xl"></i>
+                <div class="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-emerald-500/20">
+                    <i class="fa-solid fa-plus text-emerald-500 text-xl"></i>
                 </div>
-                <h2 class="text-xl font-bold text-white">Nuevo Registro</h2>
-                <p class="text-sm text-slate-400">Añade tu progreso de hoy</p>
+                <h2 class="text-xl font-bold text-white">Registrar Serie</h2>
+                <p class="text-sm text-slate-400">Selecciona y guarda tu progreso</p>
             </div>
             
             <form id="workout-form" class="space-y-5">
-                <div>
-                    <label class="block text-sm font-medium text-slate-300 mb-2">Ejercicio</label>
-                    <input type="text" id="exercise-name" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition" placeholder="Ej: Sentadilla búlgara">
-                </div>
-                <div class="grid grid-cols-2 gap-4">
+                <!-- Fecha y Tiempo -->
+                <div class="grid grid-cols-2 gap-4 bg-slate-950 p-4 rounded-2xl border border-slate-800/50">
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Peso (kg)</label>
-                        <div class="relative">
-                            <input type="number" step="0.5" id="exercise-weight" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-lg font-semibold focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="0">
-                        </div>
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Día</label>
+                        <input type="date" id="workout-date" required class="w-full bg-transparent text-white focus:outline-none font-medium">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-slate-300 mb-2">Repeticiones</label>
-                        <input type="number" id="exercise-reps" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-lg font-semibold focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="0">
+                        <label class="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Tiempo (min)</label>
+                        <input type="number" id="workout-duration" required class="w-full bg-transparent text-white focus:outline-none font-medium" placeholder="Ej: 60">
                     </div>
                 </div>
-                <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold py-4 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transform active:scale-[0.98] transition-all">
-                    Guardar Serie
+
+                <!-- Selección de Ejercicio -->
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Categoría Muscular</label>
+                        <select id="exercise-category" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition appearance-none">
+                            <option value="" disabled selected>Selecciona un grupo...</option>
+                            <!-- Rellenado por JS -->
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2">Ejercicio</label>
+                        <select id="exercise-name" required disabled class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition appearance-none opacity-50">
+                            <option value="" disabled selected>Elige categoría primero</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Series, Reps, Peso -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2 text-center">Series</label>
+                        <input type="number" id="exercise-sets" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-center text-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="3">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2 text-center">Reps</label>
+                        <input type="number" id="exercise-reps" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-center text-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="10">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-300 mb-2 text-center">Peso (kg)</label>
+                        <input type="number" step="0.5" id="exercise-weight" required class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-white text-center text-xl font-bold focus:ring-2 focus:ring-emerald-500 outline-none transition" placeholder="0">
+                    </div>
+                </div>
+                
+                <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 text-white font-bold py-4 rounded-xl shadow-[0_0_15px_rgba(16,185,129,0.3)] hover:shadow-[0_0_25px_rgba(16,185,129,0.5)] transform active:scale-[0.98] transition-all flex justify-center items-center gap-2">
+                    <i class="fa-solid fa-check"></i> Registrar Serie
                 </button>
             </form>
         </div>
@@ -111,17 +139,6 @@
     <!-- Pestaña: Perfil -->
     <main id="tab-profile" class="tab-content px-4 py-6 max-w-xl mx-auto space-y-6">
         
-        <!-- Actualizar Medidas Mensuales (Prioridad Visual) -->
-        <div class="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl p-6 border border-slate-700 shadow-lg">
-            <h3 class="font-bold text-white mb-1"><i class="fa-solid fa-ruler-combined text-emerald-400 mr-2"></i>Control Mensual</h3>
-            <p class="text-sm text-slate-400 mb-5">Registra tu peso para ver tu evolución real.</p>
-            
-            <form id="metrics-form" class="flex gap-3">
-                <input type="number" step="0.1" id="metric-weight" required class="flex-1 bg-slate-950 border border-slate-700 rounded-xl p-4 text-white text-lg font-bold focus:ring-2 focus:ring-emerald-500 outline-none" placeholder="80.5 kg">
-                <button type="submit" class="bg-slate-100 text-slate-900 font-bold px-6 rounded-xl hover:bg-white transition active:scale-95">Registrar</button>
-            </form>
-        </div>
-
         <!-- Ajustes de Usuario -->
         <div class="bg-slate-900 rounded-3xl p-6 border border-slate-800 shadow-lg">
             <h3 class="font-semibold text-white mb-4">Datos Biométricos</h3>
@@ -139,18 +156,28 @@
                         </select>
                     </div>
                 </div>
-                <div>
-                    <label class="block text-sm font-medium text-slate-400 mb-1">Altura (cm)</label>
-                    <input type="number" id="profile-height" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-1 focus:ring-emerald-500 outline-none">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Altura (cm)</label>
+                        <input type="number" id="profile-height" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-1 focus:ring-emerald-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-400 mb-1">Peso actual (kg)</label>
+                        <input type="number" step="0.1" id="profile-weight" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-white focus:ring-1 focus:ring-emerald-500 outline-none">
+                    </div>
                 </div>
                 <button type="submit" class="w-full bg-slate-800 text-white font-semibold py-3 rounded-xl border border-slate-700 hover:bg-slate-700 transition">
                     Guardar Perfil
                 </button>
             </form>
         </div>
+        
+        <div class="text-center">
+             <button onclick="clearData()" class="text-sm text-rose-500 hover:text-rose-400 underline decoration-rose-500/30 underline-offset-4 transition">Borrar todos mis datos</button>
+        </div>
     </main>
 
-    <!-- Bottom Nav (Floating & Glassmorphism) -->
+    <!-- Bottom Nav -->
     <nav class="fixed bottom-4 left-4 right-4 max-w-md mx-auto bg-slate-900/90 backdrop-blur-lg border border-slate-800 rounded-3xl flex justify-around p-2 shadow-2xl z-50">
         <button onclick="switchTab('dashboard')" class="nav-btn active flex flex-col items-center justify-center w-16 h-14 rounded-2xl text-emerald-400 bg-slate-800/50 transition-all" data-target="dashboard">
             <i class="fa-solid fa-chart-pie text-xl mb-1"></i>
